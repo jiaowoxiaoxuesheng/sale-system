@@ -113,10 +113,20 @@
         <div style="margin-bottom:10px;">
           <label>库存</label><input type="number" min="0" v-model="editForm.stock" style="width:100%;padding:8px;margin-top:5px;">
         </div>
+        <div style="margin-bottom:10px;">
+          <label>商品图片：</label>
+          <input type="file" @change="editUploadImage" accept="image/*" style="width:100%;margin-top:5px;">
+          <div v-if="editImages.length > 0" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+            <div v-for="(img, idx) in editImages" :key="idx" style="position:relative;">
+              <img :src="img" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid #eee;">
+              <button type="button" @click="removeEditImage(idx)" style="position:absolute;top:-5px;right:-5px;background:red;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px;line-height:1;">×</button>
+            </div>
+          </div>
+        </div>
         </div>
         <div style="text-align: right;">
           <button @click="editingItem = null" class="btn bg-orange" style="margin-right: 10px;">取消</button>
-          <button @click="saveEdit" class="btn bg-green">保存保存</button>
+          <button @click="saveEdit" class="btn bg-green">保存</button>
         </div>
       </div>
     </div>
@@ -157,6 +167,8 @@ const editForm = ref({
     images: '[]'
 })
 const userId = localStorage.getItem('user_id')
+const editImages = ref([])
+const editImageFiles = ref([])
 const previewImage = ref(null)
 
 const load = async () => {
@@ -217,6 +229,7 @@ const toggleAll = (e) => {
 
 const openEditModal = (item) => {
     editingItem.value = item.id
+    editImages.value = JSON.parse(item.images || "[]")
     editForm.value = {
         title: item.title,
         description: item.description,
@@ -228,6 +241,31 @@ const openEditModal = (item) => {
         user_id: parseInt(userId),
         images: item.images || '[]'
     }
+}
+
+const editUploadImage = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    e.target.value = ""
+    const formData = new FormData()
+    formData.append("file", file)
+    try {
+        const res = await fetch("http://localhost:8000/api/upload", { method: "POST", body: formData })
+        if (res.ok) {
+            const data = await res.json()
+            editImages.value.push(data.url)
+            const images = JSON.parse(editForm.value.images || "[]")
+            images.push(data.url)
+            editForm.value.images = JSON.stringify(images)
+        }
+    } catch(e) { console.error(e) }
+}
+
+const removeEditImage = (idx) => {
+    editImages.value.splice(idx, 1)
+    const images = JSON.parse(editForm.value.images || "[]")
+    images.splice(idx, 1)
+    editForm.value.images = JSON.stringify(images)
 }
 
 const saveEdit = async () => {

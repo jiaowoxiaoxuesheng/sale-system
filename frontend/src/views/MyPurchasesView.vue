@@ -32,6 +32,7 @@
             <button @click="payOrder(purchase.id)" v-if="purchase.payment_status==='unpaid'" style="background:#ff9800;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin:2px;">付款</button>
             <button @click="confirmOrder(purchase.id)" v-if="purchase.logistics_status==='shipped'" style="background:#4CAF50;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin:2px;">确认收货</button>
             <span v-if="purchase.reviewed" style="color:#999;font-size:0.85em;">已评价</span><router-link v-if="purchase.can_review&&!purchase.reviewed" :to="'/write-review/'+purchase.id" style="margin:2px;font-size:0.85em;">评价</router-link>
+            <button @click="requestAfterSales(purchase.id)" v-if="purchase.logistics_status==='completed'" style="background:#f44336;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin:2px;">申请售后</button>
           </td>
         </tr>
       </tbody>
@@ -48,6 +49,8 @@ const userId = localStorage.getItem('user_id')
 
 const statusLabel={pending:"待付款",pending_shipment:"待发货",shipped:"已发货",completed:"已完成",after_sales:"售后"}
 const statusColor={pending:"#FF9800",pending_shipment:"#2196F3",shipped:"#4CAF50",completed:"#9E9E9E",after_sales:"#f44336"}
+
+const requestAfterSales=async id=>{const reason=prompt("请输入售后原因：");if(!reason)return;const r=await fetch("http://localhost:8000/api/purchases/"+id+"/after-sales?reason="+encodeURIComponent(reason),{method:"POST",headers:{"Authorization":tok||""}});const d=await r.json();alert(d.message||d.detail);location.reload()}
 
 const payOrder=async id=>{const r=await fetch("http://localhost:8000/api/purchases/"+id+'/pay',{method:'PUT',headers:{'Authorization':tok||''}});const d=await r.json();alert(d.message||d.detail);location.reload()}
 

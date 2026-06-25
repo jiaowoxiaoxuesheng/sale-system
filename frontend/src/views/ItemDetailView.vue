@@ -5,10 +5,12 @@
     <h2>{{ item.title }}</h2>
     <p style="color:red; font-size: 1.5em; font-weight:bold;">￥{{ item.price }}</p>
     <div style="color: #666; font-size: 0.9em; margin-bottom: 20px; display: flex; gap: 15px;">
-        <span>👤 发布者: {{ item.owner_name }}</span>
+        <span>👤 商家: {{ item.owner_name }}</span>
         <span>👀 浏览量: {{ item.views }}</span>
         <span>🕒 发布时间: {{ item.created_at.split('T')[0] }}</span>
         <span>🏷️ 分类: {{ item.category_name }}</span>
+        <span>📦 库存: {{ item.stock || 0 }}</span>
+        <span>📍 产地: {{ item.origin || '—' }}</span>
     </div>
 
     <!-- 图集展示 -->
@@ -18,12 +20,12 @@
 
 
     <div v-if="cmpInfo" style="margin-bottom: 20px; background: #e0f2fe; padding: 15px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-        <h4 style="margin: 0 0 10px 0; color: #1e40af;">📊 校园行情大盘</h4>
+        <h4 style="margin: 0 0 10px 0; color: #1e40af;">📊 农产品行情大盘</h4>
         <div style="font-size: 0.9em; color: #1e3a8a; line-height: 1.6;">
             <div>当前商品分类：<strong>{{ item.category_name }}</strong></div>
             <div>该分类全站最低价：<strong style="color: #059669;">￥{{ cmpInfo.min_price }}</strong></div>
             <div>同类商品平均价：<strong style="color: #ea580c;">￥{{ cmpInfo.avg_price }}</strong></div>
-            <div v-if="item.price < cmpInfo.avg_price" style="margin-top: 10px; font-weight: bold; color: #dc2626;">💡 该卖家定价（￥{{ item.price }}）低于校园均价，是一笔划算的交易！</div>
+            <div v-if="item.price < cmpInfo.avg_price" style="margin-top: 10px; font-weight: bold; color: #dc2626;">💡 该卖家定价（￥{{ item.price }}）低于农产品均价，是一笔划算的交易！</div>
             <div v-else style="margin-top: 10px; font-weight: bold; color: #4b5563;">💡 该卖家定价（￥{{ item.price }}）高于或等于均价。</div>
         </div>
         
@@ -74,45 +76,41 @@
         <p style="white-space: pre-wrap;">{{ item.description }}</p>
     </div>
 
+    <!-- 商品评价 -->
     <div style="margin-bottom:20px;background:#f9f9f9;padding:15px;border-radius:8px;">
       <h4>商品评价</h4>
-      <div v-if="reviewStats.total>0"><span style="color:#f39c12;font-size:1.2em;"><span v-for="i in 5" :key="i" :style="{color:i<=Math.round(reviewStats.avg_rating)?'#f39c12':'#ddd'}">★</span></span>
+      <div v-if="reviewStats.total>0">
+        <span style="color:#f39c12;font-size:1.2em;"><span v-for="i in 5" :key="i" :style="{color:i<=Math.round(reviewStats.avg_rating)?'#f39c12':'#ddd'}">★</span></span>
         <span style="margin-left:5px;font-weight:bold;">评分：{{reviewStats.avg_rating}}</span>
-        <span>({{reviewStats.total}}条评价)</span></div>
+        <span>({{reviewStats.total}}条评价)</span>
+      </div>
       <div v-if="!reviews.length" style="color:#999;">暂无评价</div>
       <div v-for="r in reviews" :key="r.id" style="border-top:1px solid #eee;padding:10px 0;">
         <div><strong>{{r.username}}</strong> <span style="color:#f39c12;"><span v-for="i in 5" :key="i" :style="{color:i<=r.rating?'#f39c12':'#ddd'}">★</span></span> <span style="color:#888;">{{r.created_at}}</span></div>
         <p>{{r.comment}}</p>
         <div v-if="r.response" style="background:#e8f5e9;padding:8px;border-radius:4px;"><span style="color:#2e7d32;">商家回复：</span>{{r.response}}</div>
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-          <!-- 商家回复 -->
           <template v-if="!r.response && userRole==='farmer' && item && item.user_id == parseInt(userId)">
             <input v-model="replyText[r.id]" placeholder="回复评价..." style="flex:1;padding:6px;border:1px solid #ccc;border-radius:4px;">
             <button @click="doReply(r.id)" style="background:#4CAF50;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">回复</button>
           </template>
-          <!-- 商家删除回复 -->
           <button v-if="r.response && userRole==='farmer' && item && item.user_id == parseInt(userId)" @click="delReply(r.id)" style="background:#f44336;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">删除回复</button>
-          <!-- 评价作者删除自己的评价 -->
           <button v-if="r.user_id == parseInt(userId)" @click="selfDelReview(r.id)" style="background:#f44336;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">删除我的评价</button>
-          <!-- 管理员强制删除 -->
           <button v-if="userRole==='admin'" @click="delReview(r.id)" style="background:#f44336;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">强制删除</button>
         </div>
       </div>
     </div>
 
-    
     <div style="display: flex; gap: 15px;">
-        <div style="display:flex;gap:10px;align-items:center;">
-          <div v-if="item.stock > 0 && item.status === 1 && item.user_id != userId && userRole !== 'admin'" style="display:flex;gap:8px;align-items:center;">
-            <label>购买数量: </label>
-            <input type="number" v-model.number="buyQuantity" :min="1" :max="item.stock" style="width:60px;padding:8px;border:1px solid #ccc;border-radius:4px;">
-            <button @click="buyItem" style="background: #E91E63; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 1.1em; font-weight: bold;">
-              💳 立即购买
-            </button>
-          </div>
-          <div v-else-if="item.status === 1 && item.user_id != userId && userRole !== 'admin'" style="color:#999;font-weight:bold;">
-            ⛔ 已售罄
-          </div>
+        <div v-if="item.status === 1 && item.user_id != userId && userRole !== 'admin'" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span style="background:#fff3e0;padding:4px 10px;border-radius:4px;font-size:0.9em;font-weight:bold;">库存: {{item.stock}} {{item.specification}}</span>
+          <label>购买数量: </label>
+          <input type="number" v-model.number="buyQuantity" :min="1" :max="item.stock" style="width:60px;padding:8px;border:1px solid #ccc;border-radius:4px;">
+          <button @click="buyItem" style="background: #E91E63; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 1.1em; font-weight: bold;">
+            💳 立即购买
+          </button>
+        </div>
+        <div v-else-if="item.status === 1 && item.user_id != userId && userRole !== 'admin'" style="color:#999;font-weight:bold;">⛔ 已售罄</div>
 
         <button @click="toggleFavorite" :style="{ background: isFavorite ? '#FF9800' : '#4CAF50', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer', fontSize: '1.1em' }">
             {{ isFavorite ? '★ 取消收藏' : '☆ 加入收藏' }}
@@ -164,13 +162,17 @@ const buyQuantity = ref(1)
 const isFavorite = ref(false)
 const userId = localStorage.getItem('user_id')
 const userRole = localStorage.getItem('role')
+const reviews = ref([])
+const reviewStats = ref({avg_rating:0,total:0,distribution:{1:0,2:0,3:0,4:0,5:0}})
+const replyText = ref({})
+const token = localStorage.getItem('token')||""
 
 // AI Assistant
 const isAIOpen = ref(false)
 const aiKeyword = ref('')
 const aiChatBox = ref(null)
 const aiMessages = ref([
-    { role: 'bot', content: '您好！我是校园二手平台智能助手。请问想了解怎么发布商品？还是关于议价、退货相关的问题？' }
+    { role: 'bot', content: '您好！我是农产品二手平台智能助手。请问想了解怎么发布商品？还是关于议价、退货相关的问题？' }
 ])
 
 const scrollToBottom = () => {
@@ -242,51 +244,18 @@ onMounted(async () => {
     }
 })
 
-const reviews=ref([])
-const reviewStats=ref({avg_rating:0,total:0,distribution:{1:0,2:0,3:0,4:0,5:0}})
-const replyText=ref({})
-const token=localStorage.getItem("token")||""
-
-const loadReviews=async()=>{
-  try{
-    const r=await fetch("http://localhost:8000/api/reviews/"+route.params.id)
-    if(r.ok)reviews.value=await r.json()
-    const s=await fetch("http://localhost:8000/api/reviews/stats/"+route.params.id)
-    if(s.ok)reviewStats.value=await s.json()
-  }catch(e){}
+const loadReviews = async () => {
+  try{const r=await fetch("http://localhost:8000/api/reviews/"+route.params.id);if(r.ok)reviews.value=await r.json();const s=await fetch("http://localhost:8000/api/reviews/stats/"+route.params.id);if(s.ok)reviewStats.value=await s.json()}catch(e){}
 }
-
-const doReply=async(id)=>{
-  const txt=replyText.value[id]
-  if(!txt)return
-  const r=await fetch("http://localhost:8000/api/reviews/"+id+'/response',{method:'POST',headers:{'Content-Type':'application/json','Authorization':token},body:JSON.stringify({response:txt})})
-  if(r.ok){replyText.value[id]="";loadReviews()}
-}
-
-
-const delReply=async(id)=>{
-  if(!confirm("确定删除回复？"))return
-  const r=await fetch("http://localhost:8000/api/reviews/"+id+'/response',{method:'DELETE',headers:{'Authorization':token}})
-  if(r.ok)loadReviews()
-}
-
-const selfDelReview=async(id)=>{
-  if(!confirm("确定删除您的评价？"))return
-  const r=await fetch("http://localhost:8000/api/reviews/"+id+'/self',{method:'DELETE',headers:{'Authorization':token}})
-  if(r.ok)loadReviews()
-}
-
-const delReview=async(id)=>{
-
-  if(!confirm("确定删除"))return
-  const r=await fetch("http://localhost:8000/api/reviews/"+id,{method:'DELETE',headers:{'Authorization':token}})
-  if(r.ok)loadReviews()
-}
+const doReply=async id=>{const txt=replyText.value[id];if(!txt)return;const r=await fetch("http://localhost:8000/api/reviews/"+id+'/response',{method:'POST',headers:{'Content-Type':'application/json','Authorization':token},body:JSON.stringify({response:txt})});if(r.ok){replyText.value[id]="";loadReviews()}}
+const delReview=async id=>{if(!confirm("\u786e\u5b9a\u5220\u9664\u8be5\u8bc4\u4ef7\uff1f"))return;const r=await fetch("http://localhost:8000/api/reviews/"+id,{method:'DELETE',headers:{'Authorization':token}});if(r.ok)loadReviews()}
+const delReply=async id=>{if(!confirm("\u786e\u5b9a\u5220\u9664\u56de\u590d\uff1f"))return;const r=await fetch("http://localhost:8000/api/reviews/"+id+'/response',{method:'DELETE',headers:{'Authorization':token}});if(r.ok)loadReviews()}
+const selfDelReview=async id=>{if(!confirm("\u786e\u5b9a\u5220\u9664\u60a8\u7684\u8bc4\u4ef7\uff1f"))return;const r=await fetch("http://localhost:8000/api/reviews/"+id+'/self',{method:'DELETE',headers:{'Authorization':token}});if(r.ok)loadReviews()}
 
 const buyItem = async () => {
     if(!userId) return alert('请先登录！')
-    if(!confirm(`您确定要花费 ￥${item.value.price} 购买 ${buyQuantity.value} 件商品吗？`)) return;
-    if(buyQuantity.value < 1 || buyQuantity.value > (item.value.stock || 0)) return alert('请输入有效的购买数量！')
+    if(buyQuantity.value < 1 || buyQuantity.value > (item.value.stock || 0)) return alert('请输入有效的购买数量！库存: ' + (item.value.stock || 0))
+    if(!confirm(`您确定要花费 ￥${(item.value.price * buyQuantity.value).toFixed(2)} 购买 ${buyQuantity.value} 件商品吗？`)) return;
 
     try {
         const token = localStorage.getItem('token') || ''

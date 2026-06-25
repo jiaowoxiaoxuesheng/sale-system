@@ -460,6 +460,8 @@ def get_my_purchases(user_id: int, db: Session = Depends(get_db)):
         "can_review": p.logistics_status=="completed",
         "reviewed": db.query(Review).filter(Review.purchase_id==p.id).count()>0,
 
+        "after_sales_reason": p.after_sales_reason or "",
+        "after_sales_desc": p.after_sales_desc or "",
         "created_at": p.created_at.isoformat()
 
     } for p in purchases]
@@ -830,6 +832,8 @@ def get_sales(user_id: int, db: Session = Depends(get_db), current_user: User = 
         "tracking_number": p.tracking_number or "",
         "can_review": p.logistics_status=="completed",
         "reviewed": db.query(Review).filter(Review.purchase_id==p.id).count()>0,
+        "after_sales_reason": p.after_sales_reason or "",
+        "after_sales_desc": p.after_sales_desc or "",
         "created_at": p.created_at.isoformat()
     } for p in sales]
 
@@ -912,6 +916,18 @@ def update_stock(item_id: int, stock: int, db: Session = Depends(get_db), curren
     return {"message": "库存更新成功", "stock": item.stock}
 
 # ==========  ==========
+
+@app.put("/api/purchases/{purchase_id}/process-after-sales")
+def process_after_sales(purchase_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    purchase = db.query(Purchase).filter(Purchase.id == purchase_id).first()
+    if not purchase: raise HTTPException(status_code=404, detail="订单不存在")
+    item = db.query(Item).filter(Item.id == purchase.item_id, Item.user_id == current_user.id).first()
+    if not item and current_user.role != "admin": raise HTTPException(status_code=403, detail="无权操作")
+    if purchase.logistics_status != "after_sales": raise HTTPException(status_code=400, detail="订单不在售后状态")
+    purchase.logistics_status = "completed"
+    db.commit()
+    return {"message": "售后已处理，订单已完成"}
+
 @app.post("/api/purchases/{purchase_id}/after-sales")
 def after_sales(purchase_id: int, reason: str = "", description: str = "", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     purchase = db.query(Purchase).filter(Purchase.id == purchase_id, Purchase.buyer_id == current_user.id).first()

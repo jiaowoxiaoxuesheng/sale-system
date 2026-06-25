@@ -29,6 +29,7 @@
           <td style="padding:12px;text-align:center;">
             <button @click="ship(s)" v-if="s.logistics_status==='pending_shipment'" style="background:#2196F3;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin:2px;font-size:0.9em;">确认发货</button>
             <button @click="track(s)" v-if="s.tracking_number" style="background:#e2e8f0;color:#333;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin:2px;font-size:0.9em;">查看物流</button>
+            <button @click="processAfterSales(s)" v-if="s.logistics_status==='after_sales'" style="background:#f44336;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin:2px;font-size:0.9em;">处理售后</button>
           </td>
         </tr>
       </tbody>
@@ -42,6 +43,8 @@ const sales=ref([]),uid=localStorage.getItem("user_id"),tok=localStorage.getItem
 const fmt=iso=>new Date(iso).toLocaleString()
 const statusText={pending:"待付款",pending_shipment:"待发货",shipped:"已发货",completed:"已完成",after_sales:"售后"}
 const statusColor={pending:"#FF9800",pending_shipment:"#2196F3",shipped:"#4CAF50",completed:"#9E9E9E",after_sales:"#f44336"}
+
+const processAfterSales=async(s)=>{if(!confirm("售后原因: " + (s.after_sales_reason || '无') + "\n\n确定处理该售后申请？"))return;const r=await fetch("http://localhost:8000/api/purchases/"+s.id+"/process-after-sales",{method:"PUT",headers:{"Authorization":tok||""}});const d=await r.json();alert(d.message||d.detail);load()}
 
 const load=async()=>{const r=await fetch("http://localhost:8000/api/users/"+uid+'/sales',{headers:{"Authorization":tok||""}});if(r.ok)sales.value=await r.json()}
 

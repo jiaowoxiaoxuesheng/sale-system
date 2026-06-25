@@ -29,7 +29,9 @@
 
     <div class="item-grid" v-if="items.length">
       <div class="card card-hover" v-for="item in items" :key="item.id" @click="$router.push('/item/' + item.id)">
-        <h3 v-html="highlight(item.title)"></h3>
+        <div style="border:2px solid #bbb;border-radius:8px;padding:10px 12px;background:#f5f5f5;margin-bottom:12px;text-align:center;font-weight:bold;">
+          <h3 v-html="highlight(item.title)" style="margin:0;font-size:1.1rem;"></h3>
+        </div>
         <span v-if="item.is_lowest" class="lowest-badge">💰 史低好价</span>
         <p style="color:var(--danger-color); font-weight:bold; font-size:1.2rem;">￥{{ item.price }}</p>
         <p v-if="item.is_lowest" style="font-size:0.75rem; color:#e67e22;">历史低至 ￥{{ item.lowest_price }}</p>
