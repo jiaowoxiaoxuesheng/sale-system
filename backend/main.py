@@ -108,6 +108,7 @@ class ItemCreate(BaseModel):
     origin: str = ""
     specification: str = ""
     stock: int = 0
+    min_stock: int = 0
     category_id: int
     user_id: int
     images: str = "[]" # 接收前端传来的多图JSON结构
@@ -228,6 +229,14 @@ def get_items(
     
     import json as _json
     result_items = []
+    # 优化：批量查询评价统计，避免 N+1 问题
+    item_ids = [i.id for i in items]
+    review_stats = {}
+    if item_ids:
+        review_rows = db.query(Review.item_id, func.avg(Review.rating), func.count(Review.id)).filter(
+            Review.item_id.in_(item_ids), Review.deleted_by_admin != True
+        ).group_by(Review.item_id).all()
+        review_stats = {r[0]: (r[1] or 0, r[2]) for r in review_rows}
     for i in items:
         # 计算史低
         try:
@@ -243,8 +252,8 @@ def get_items(
             "created_at": i.created_at.strftime("%Y-%m-%d"),
             "category_name": i.category.name if i.category else "默认",
             "owner_name": i.owner.username if i.owner else "未知",
-            "avg_rating": db.query(func.avg(Review.rating)).filter(Review.item_id == i.id).scalar() or 0,
-        "review_count": db.query(Review).filter(Review.item_id == i.id).count(),
+            "avg_rating": review_stats.get(i.id, (0, 0))[0],
+        "review_count": review_stats.get(i.id, (0, 0))[1],
         "is_lowest": is_lowest,
             "lowest_price": lowest
         })
@@ -631,6 +640,28 @@ def get_my_info(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user: raise HTTPException(status_code=404)
     return {"username": user.username, "balance": round(user.balance,2), "role": user.role}
+
+# ====================  数据库 JOIN 查询演示 ====================
+@app.get("/api/demo/join-query")
+def demo_join_query(db: Session = Depends(get_db)):
+    """演示：使用 LEFT JOIN 一次性获取商品及其评价统计"""
+    results = db.query(
+        Item.id, Item.title, Item.price, Item.stock, Item.status,
+        func.coalesce(func.avg(Review.rating), 0).label("avg_rating"),
+        func.count(Review.id).label("review_count"),
+        Category.name.label("category_name"),
+        User.username.label("seller_name")
+    ).join(Category, Item.category_id == Category.id
+    ).join(User, Item.user_id == User.id
+    ).outerjoin(Review, Review.item_id == Item.id
+    ).group_by(Item.id
+    ).limit(20).all()
+    return [{
+        "id": r.id, "title": r.title, "price": r.price,
+        "stock": r.stock, "status": r.status,
+        "avg_rating": float(r.avg_rating), "review_count": r.review_count,
+        "category": r.category_name, "seller": r.seller_name
+    } for r in results]
 
 # ==================== 7. 管理员模块 ====================
 # 分类管理、商品强制下架、账号管理

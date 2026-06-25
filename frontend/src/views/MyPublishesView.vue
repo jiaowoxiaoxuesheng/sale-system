@@ -57,7 +57,7 @@
           <th>标题</th>
           <th>价格</th>
           <th>状态</th>
-          <th>库存</th><th>产地</th><th>规格</th><th>浏览量</th>
+          <th>库存</th><th>产地</th><th>规格</th><th>补货界限</th><th>浏览量</th>
           <th>发布时间</th>
           <th>操作</th>
         </tr>
@@ -76,7 +76,7 @@
               {{ item.status === 1 ? '售卖中' : (item.status === 2 ? '已售出' : '已下架') }}
             </span>
           </td>
-          <td style="color:var(--text-muted)">👁 {{ item.stock }}</td><td>{{ item.origin || "-" }}</td><td>{{ item.specification || "-" }}</td><td>{{ item.views }}</td>
+          <td style="color:var(--text-muted)"> {{ item.stock }}<span v-if="item.min_stock && item.stock < item.min_stock" style="color:red;margin-left:5px;font-size:0.85em;">⚠ 需补货</span></td><td>{{ item.origin || "-" }}</td><td>{{ item.specification || "-" }}</td><td>{{ item.min_stock || 0 }}</td><td>👁 {{ item.views }}</td>
           <td style="color:var(--text-muted)">{{ item.created_at.split(' ')[0] }}</td>
           <td>
             <button v-if="item.status === 1" @click="openEditModal(item)" class="btn bg-blue btn-action">修改</button>
@@ -114,6 +114,9 @@
         </div>
         <div style="margin-bottom:10px;">
           <label>库存</label><input type="number" min="0" v-model="editForm.stock" style="width:100%;padding:8px;margin-top:5px;">
+        <div style="margin-bottom:10px;">
+          <label>补货界限</label><input type="number" min="0" v-model="editForm.min_stock" style="width:100%;padding:8px;margin-top:5px;"><span style="font-size:0.85em;color:#999;display:block;">库存低于此值时显示补货提醒</span>
+        </div>
         </div>
         <div style="margin-bottom:10px;">
           <label>商品图片：</label>
@@ -164,6 +167,7 @@ const editForm = ref({
     origin: '',
     specification: '',
     stock: 0,
+    min_stock: 0,
     category_id: null,
     user_id: 0,
     images: '[]'
@@ -239,6 +243,7 @@ const openEditModal = (item) => {
         origin: item.origin || '',
         specification: item.specification || '',
         stock: item.stock || 0,
+        min_stock: item.min_stock || 0,
         category_id: item.category_id,
         user_id: parseInt(userId),
         images: item.images || '[]'

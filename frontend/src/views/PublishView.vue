@@ -54,7 +54,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
-const form = ref({ title: '', description: '', price: '', origin: '', specification: 1, stock: 0, category_id: 1 })
+const form = ref({ title: '', description: '', price: '', origin: '', specification: 1, stock: 0, min_stock: 0, category_id: 1 })
 const images = ref([]) // 用于在页面上展示所选图片的本地缩略图预览
 const imageFiles = ref([]) // 真实的文件数据，点击“发布”时才传给后端
 const categories = ref([])
@@ -123,6 +123,7 @@ const submit = async () => {
         origin: form.value.origin || "",
         specification: form.value.specification ? String(form.value.specification) + 'kg' : '',
         stock: parseInt(form.value.stock) || 0,
+        min_stock: parseInt(form.value.min_stock) || 0,
         category_id: form.value.category_id,
         user_id: parseInt(userId),
         images: JSON.stringify(uploadedUrls)

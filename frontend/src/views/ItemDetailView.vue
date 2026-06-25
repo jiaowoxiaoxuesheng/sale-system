@@ -105,7 +105,7 @@
 
     <div style="display: flex; gap: 15px;">
         <div v-if="item.status === 1 && item.user_id != userId && userRole !== 'admin'" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <span style="background:#fff3e0;padding:4px 10px;border-radius:4px;font-size:0.9em;font-weight:bold;">库存: {{item.stock}} {{item.specification}}</span>
+          <span style="background:#fff3e0;padding:4px 10px;border-radius:4px;font-size:0.9em;font-weight:bold;">库存: {{item.stock}}</span>
           <label>购买数量: </label>
           <input type="number" v-model.number="buyQuantity" :min="1" :max="item.stock" style="width:60px;padding:8px;border:1px solid #ccc;border-radius:4px;">
           <button @click="buyItem" style="background: #E91E63; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 1.1em; font-weight: bold;">

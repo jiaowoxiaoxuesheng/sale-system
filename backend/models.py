@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Text
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Text, Index, CheckConstraint
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
@@ -43,6 +43,7 @@ class Item(Base):
     origin = Column(String(100), default="")
     specification = Column(String(100), default="")
     stock = Column(Integer, default=0)
+    min_stock = Column(Integer, default=0)  # 补货界限
     status = Column(Integer, default=1)
     views = Column(Integer, default=0)
     images = Column(String(1000), default="[]")
@@ -53,6 +54,14 @@ class Item(Base):
     created_at = Column(DateTime, default=datetime.now)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'))
     category_id = Column(Integer, ForeignKey('categories.id', ondelete='SET NULL'))
+
+    __table_args__ = (
+        Index("ix_item_user_status", "user_id", "status"),
+        Index("ix_item_category_status", "category_id", "status"),
+        CheckConstraint("price >= 0", name="ck_item_price"),
+        CheckConstraint("stock >= 0", name="ck_item_stock"),
+        CheckConstraint("status IN (1, 2, 3)", name="ck_item_status"),
+    )
     owner = relationship('User', back_populates='items')
     category = relationship('Category', back_populates='items')
     favorited_by = relationship('Favorite', back_populates='item', cascade='all, delete-orphan')
@@ -105,6 +114,12 @@ class Purchase(Base):
     after_sales_reason = Column(String(200), default="")
     after_sales_desc = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.now)
+
+    __table_args__ = (
+        Index("ix_purchase_seller_status", "seller_id", "logistics_status"),
+        Index("ix_purchase_buyer_status", "buyer_id", "logistics_status"),
+        CheckConstraint("quantity > 0", name="ck_purchase_quantity"),
+    )
     buyer = relationship('User', back_populates='purchases', foreign_keys=[buyer_id])
     seller = relationship('User', foreign_keys=[seller_id])
     item = relationship('Item', foreign_keys=[item_id])
@@ -125,5 +140,11 @@ class Review(Base):
     created_at = Column(DateTime, default=datetime.now)
     deleted_by_admin = Column(Boolean, default=False)
     responded_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_review_item", "item_id"),
+        Index("ix_review_user", "user_id"),
+        CheckConstraint("rating >= 1 AND rating <= 5", name="ck_review_rating"),
+    )
     user = relationship('User', back_populates='reviews')
     item = relationship('Item', back_populates='reviews')
