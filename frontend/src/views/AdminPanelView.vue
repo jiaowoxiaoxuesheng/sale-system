@@ -1,4 +1,6 @@
-﻿<template>
+﻿<!-- ==================== 管理员后台 ==================== -->
+<!-- 分类管理、商品强制下架、账号管理、发布公告 -->
+<template>
   <div class="admin-container">
     <h2 style="color: var(--danger-color); margin-bottom: 30px;">⚙️ 后台管理中心 <span style="font-size:0.5em;color:#999;">(Admin Only)</span></h2>
     

@@ -24,6 +24,8 @@
   </div>
 </template>
 
+<!-- ==================== 用户登录注册 ==================== -->
+<!-- 支持三类角色选择、密码二次确认 -->
 <script setup>
 import {ref} from "vue"
 import {useRouter} from "vue-router"
@@ -31,7 +33,8 @@ const router=useRouter()
 const mode=ref('login')
 const form=ref({username:"",password:"",confirm_password:"",role:"consumer"})
 
-const doLogin=async()=>{
+  // 登录操作：验证账号密码，保存 token 到 localStorage
+  const doLogin=async()=>{
   const r=await fetch("http://localhost:8000/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:form.value.username,password:form.value.password})})
   const d=await r.json()
   if(!r.ok){alert(d.detail);return}
@@ -40,7 +43,8 @@ const doLogin=async()=>{
   alert(d.message);location.href="/"
 }
 
-const doRegister=async()=>{
+  // 注册操作：验证密码一致性，选择用户角色（消费者/商家）
+  const doRegister=async()=>{
   if(!form.value.username||!form.value.password)return alert("请填写用户名和密码")
   if(form.value.password!==form.value.confirm_password)return alert("两次密码输入不一致")
   const r=await fetch("http://localhost:8000/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form.value)})

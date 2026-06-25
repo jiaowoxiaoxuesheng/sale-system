@@ -19,6 +19,8 @@ import shutil
 import os
 
 # ==================== 1. 数据库配置 ====================
+# ==================== 1. 数据库配置 ====================
+# 使用 MySQL 数据库，连接地址为 localhost:3306
 SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:123456@localhost:3306/agricultural_sale"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -30,10 +32,15 @@ app = FastAPI(title="校园二手交易平台 - 前后端分离API")
 def init_default_data():
     """在服务启动时自动初始化外键依赖数据（例如默认的分类），避免前端发布时报 500 外键约束错误引发跨域异常"""
     db = SessionLocal()
+    # 初始化默认分类（仅第一次运行时创建）
     if db.query(Category).count() == 0:
         db.add(Category(name="默认分类"))
         db.add(Category(name="电子产品"))
         db.add(Category(name="生活用品"))
+        db.commit()
+    # 自动创建管理员账号（admin/123456）
+    if not db.query(User).filter(User.username == "admin").first():
+        db.add(User(username="admin", password="123456", role="admin"))
         db.commit()
     db.close()
 
@@ -41,6 +48,8 @@ def init_default_data():
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# ==================== 跨域请求配置 (CORS) ====================
+# 允许前端 Vue 服务器跨域访问后端 API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -48,6 +57,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ==================== 数据交互模型 (Pydantic Schema) ====================
+# 用于 API 请求参数的类型校验
 class BuyRequest(BaseModel):
     delivery_address: str = ""
     phone: str = ""
@@ -64,6 +75,8 @@ def get_db():
 
 
 
+# ==================== 4. 订单管理模块 ====================
+# 购买、付款、发货、确认收货、售后
 @app.post("/api/items/{item_id}/buy")
 def buy_item(item_id: int, buy_req: BuyRequest = None, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     buyer = get_current_user(authorization=authorization, db=db)
@@ -112,6 +125,8 @@ class BatchUpdateStatusRequest(BaseModel):
     status: int
 
 # 引入 JWT 进行会话管理
+# ==================== JWT 用户认证 ====================
+# 用于用户登录状态维护，Token 有效期 7 天
 SECRET_KEY = "agricultural_sale_secret_2026"
 ALGORITHM = "HS256"
 
@@ -134,6 +149,8 @@ def get_current_user(authorization: Optional[str] = Header(None), db: Session = 
     return user
 
 # ==================== 身份验证与权限接口 ====================
+# ==================== 2. 用户管理模块 ====================
+# 注册、登录、权限验证
 @app.post("/api/register")
 def register(user: UserAuth, db: Session = Depends(get_db)):
     if db.query(User).filter(User.username == user.username).first():
@@ -303,6 +320,8 @@ def batch_update_status(req: BatchUpdateStatusRequest, authorization: Optional[s
     db.commit()
     return {"message": "批量更新状态成功"}
 
+# ==================== 3. 商品管理模块 ====================
+# 商品的增删改查、上下架、多条件检索
 @app.post("/api/items")
 def create_item(item: ItemCreate, db: Session = Depends(get_db)):
     """物品发布"""
@@ -613,6 +632,8 @@ def get_my_info(user_id: int, db: Session = Depends(get_db)):
     if not user: raise HTTPException(status_code=404)
     return {"username": user.username, "balance": round(user.balance,2), "role": user.role}
 
+# ==================== 7. 管理员模块 ====================
+# 分类管理、商品强制下架、账号管理
 @app.get("/api/admin/all-items")
 def admin_get_all_items(db: Session = Depends(get_db)):
     """管理员：强制查看与管理所有商品"""
@@ -661,11 +682,11 @@ client = OpenAI(
 def ai_chat(req: AIChatRequest, db: Session = Depends(get_db)):
     """接入 通义千问API，开启联网搜索实现全网比价"""
     try:
-        sys_prompt = """你是校园二手交易平台的高级智能导购与“全网比价专家”。你的职责不仅是推销，还要客观地帮用户做决策。已开启实时联网搜索，能获取闲鱼、淘宝、转转等平台的最新二手价格。
+        sys_prompt = """你是农产品电商平台的高级智能导购与“全网比价专家”。你的职责不仅是推销，还要客观地帮用户做决策。已开启实时联网搜索，能获取各大农产品平台的最新价格。
 规则：
-1. 用户问价格/比价时，**必须联网搜索当前真实的全网二手均价**，禁止编造或使用旧知识。
+1. 用户问价格/比价时，**必须联网搜索当前真实的市场价格**，禁止编造或使用旧知识。
 2. 将全网均价与本平台的【当前商品】进行对比，帮用户算一笔账（差价多少）。
-3. 如果当前商品性价比极高，极力推荐购买；如果本商品较贵，教用户一些买二手商品的“砍价话术”。
+3. 如果当前商品性价比极高，极力推荐购买；如果本商品较贵，教用户一些选购农产品的“选购建议”。
 4. 表现得像一个技术极客+专业客服，语气自然，字数控制在100字左右。"""
         
         if req.item_id:
@@ -712,7 +733,8 @@ def get_price_trend(item_id: int, db: Session = Depends(get_db)):
 
 
 
-# ==========  ==========
+# ========== 付款操作 ==========
+# 买家支付订单，商家余额增加
 @app.put("/api/purchases/{purchase_id}/pay")
 def pay_purchase(purchase_id: int, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     buyer = get_current_user(authorization=authorization, db=db)
@@ -726,7 +748,8 @@ def pay_purchase(purchase_id: int, authorization: Optional[str] = Header(None), 
     db.commit()
     return {"message": "付款成功，等待发货"}
 
-# ==========  ==========
+# ========== 确认收货 ==========
+# 买家确认收到商品，订单变为已完成
 @app.put("/api/purchases/{purchase_id}/confirm-received")
 def confirm_received(purchase_id: int, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     buyer = get_current_user(authorization=authorization, db=db)
@@ -737,7 +760,8 @@ def confirm_received(purchase_id: int, authorization: Optional[str] = Header(Non
     db.commit()
     return {"message": "已确认收货"}
 
-# ==========  ==========
+# ========== 卖家评价管理 ==========
+# 商家查看自己商品的评价列表
 @app.get("/api/seller/reviews")
 def get_seller_reviews(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     my_items = db.query(Item.id).filter(Item.user_id == current_user.id).subquery()
@@ -756,9 +780,8 @@ def get_seller_reviews(db: Session = Depends(get_db), current_user: User = Depen
         })
     return result
 
-# ==========  ==========
-
-
+# ========== 单品销售统计 ==========
+# 用于商品后台的销售饼图，前5+其他
 @app.get("/api/merchant/item-sales/{user_id}")
 def get_merchant_item_sales(user_id: int, db: Session = Depends(get_db)):
     """商家单品销售统计（用于饼图）"""
@@ -775,6 +798,8 @@ def get_merchant_item_sales(user_id: int, db: Session = Depends(get_db)):
     result.sort(key=lambda x: x["total_revenue"], reverse=True)
     return result
 
+# ==================== 6. 统计分析模块 ====================
+# 商家销量统计、单品销售饼图
 @app.get("/api/merchant/stats/{user_id}")
 def get_merchant_stats(user_id: int, db: Session = Depends(get_db)):
     """商家销售统计"""
@@ -814,7 +839,8 @@ def get_order_stats(db: Session = Depends(get_db)):
         "total_products": db.query(Item).filter(Item.status == 1).count()
     }
 
-# ==========  ==========
+# ========== 销售记录 ==========
+# 商家查看卖出订单，含物流、售后信息
 @app.get("/api/users/{user_id}/sales")
 def get_sales(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.id != user_id and current_user.role != "admin":
@@ -852,7 +878,8 @@ class LogisticsUpdate(BaseModel):
     logistics_company: str = ""
     tracking_number: str = ""
 
-# ==========  ==========
+# ========== 评价统计 ==========
+# 计算商品的平均评分、评价数量
 @app.get("/api/reviews/stats/{item_id}")
 def get_review_stats(item_id: int, db: Session = Depends(get_db)):
     reviews_list = db.query(Review).filter(Review.item_id == item_id, Review.deleted_by_admin != True).all()
@@ -864,6 +891,8 @@ def get_review_stats(item_id: int, db: Session = Depends(get_db)):
     return {"avg_rating": avg_rating, "total": total, "distribution": distribution}
 
 
+# ==================== 5. 评价反馈模块 ====================
+# 评分、留言、商家回复、管理员强制删除
 @app.get("/api/reviews/{item_id}")
 def get_item_reviews(item_id: int, db: Session = Depends(get_db)):
     reviews=db.query(Review).filter(Review.item_id==item_id,Review.deleted_by_admin!=True).order_by(desc(Review.created_at)).all()
@@ -889,7 +918,8 @@ def respond_review(review_id:int,data:ReviewResponse,db: Session = Depends(get_d
     review.response=data.response;review.responded_at=datetime.now();db.commit()
     return {"message": "回复成功"}
 
-# ==========  ==========
+# ========== 物流更新 ==========
+# 商家确认发货时填写物流信息，同一运单号不能重复
 @app.put("/api/purchases/{purchase_id}/logistics")
 def update_logistics(purchase_id:int,data:LogisticsUpdate,db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
     purchase=db.query(Purchase).filter(Purchase.id==purchase_id).first()
@@ -905,7 +935,8 @@ def update_logistics(purchase_id:int,data:LogisticsUpdate,db: Session = Depends(
     db.commit()
     return {"message": "物流更新成功"}
 
-# ==========  ==========
+# ========== 库存管理 ==========
+# 商家在编辑商品时修改库存数量
 @app.put("/api/items/{item_id}/stock")
 def update_stock(item_id: int, stock: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     item = db.query(Item).filter(Item.id == item_id, Item.user_id == current_user.id).first()
@@ -915,8 +946,8 @@ def update_stock(item_id: int, stock: int, db: Session = Depends(get_db), curren
     item.stock = stock; db.commit()
     return {"message": "库存更新成功", "stock": item.stock}
 
-# ==========  ==========
-
+# ========== 售后处理 ==========
+# 商家处理售后申请，处理后订单恢复完成
 @app.put("/api/purchases/{purchase_id}/process-after-sales")
 def process_after_sales(purchase_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     purchase = db.query(Purchase).filter(Purchase.id == purchase_id).first()
@@ -938,7 +969,8 @@ def after_sales(purchase_id: int, reason: str = "", description: str = "", db: S
     db.commit()
     return {"message": "售后申请已提交"}
 
-# ==========  ==========
+# ========== 评价删除 ==========
+# 管理员强制删除违规评价，删除后隐藏不显示
 @app.delete("/api/reviews/{review_id}")
 def delete_review(review_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":
@@ -948,7 +980,8 @@ def delete_review(review_id: int, db: Session = Depends(get_db), current_user: U
     review.deleted_by_admin=True;review.comment="评价已被管理员删除";db.commit()
     return {"message": "已将评价隐藏"}
 
-# ========== ???? ==========
+# ========== 评价自删除 ==========
+# 买家可删除自己的评价，删除后可重新评价
 @app.delete("/api/reviews/{review_id}/self")
 def self_delete_review(review_id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
     review=db.query(Review).filter(Review.id==review_id,Review.user_id==current_user.id).first()
@@ -956,7 +989,8 @@ def self_delete_review(review_id:int,db:Session=Depends(get_db),current_user:Use
     db.delete(review);db.commit()
     return {"message": "已删除，可重新评价"}
 
-# ========== ??? ==========
+# ========== 回复删除 ==========
+# 商家可删除自己的回复
 @app.delete("/api/reviews/{review_id}/response")
 def delete_reply(review_id:int,db:Session=Depends(get_db),current_user:User=Depends(get_current_user)):
     review=db.query(Review).filter(Review.id==review_id).first()

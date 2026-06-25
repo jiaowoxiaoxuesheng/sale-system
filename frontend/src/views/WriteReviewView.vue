@@ -1,3 +1,5 @@
+<!-- ==================== 写评价 ==================== -->
+<!-- 星级评分 + 文字留言 -->
 <template>
   <div style="max-width:500px;margin:30px auto;background:white;padding:30px;border-radius:8px;">
     <h2>写评价</h2>

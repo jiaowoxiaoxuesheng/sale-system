@@ -1,3 +1,5 @@
+<!-- ==================== 发布商品 ==================== -->
+<!-- 商品名称、描述、价格、产地、规格、库存、图片 -->
 <template>
   <div style="background:white; padding: 20px; max-width: 500px; margin: 0 auto; border-radius: 8px;">
     <h2>发布农产品</h2>
@@ -16,8 +18,8 @@
         <input v-model="form.origin" placeholder="如： 山东烟台" style="width:100%;padding:8px;margin-top:5px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
       </div>
       <div style="margin-bottom:15px;">
-        <label>规格（如： 500g/份）：</label>
-        <input v-model="form.specification" placeholder="如： 500g/份、1kg/袋" style="width:100%;padding:8px;margin-top:5px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
+        <label>规格（kg）：</label>
+        <input type="number" v-model.number="form.specification" min="0" step="0.1" placeholder="如 1" style="width:100%;padding:8px;margin-top:5px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
       </div>
       <div style="margin-bottom:15px;">
         <label>库存（数量）：</label>
@@ -42,6 +44,7 @@
         </div>
       </div>
       
+      
       <button type="submit" style="background:#4CAF50; color:white; padding:10px; width: 100%; border: none; border-radius: 4px; cursor: pointer; font-size: 1.1em;">确认发布</button>
     </form>
   </div>
@@ -51,7 +54,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
-const form = ref({ title: '', description: '', price: '', origin: '', specification: 'kg', stock: 0, category_id: 1 })
+const form = ref({ title: '', description: '', price: '', origin: '', specification: 1, stock: 0, category_id: 1 })
 const images = ref([]) // 用于在页面上展示所选图片的本地缩略图预览
 const imageFiles = ref([]) // 真实的文件数据，点击“发布”时才传给后端
 const categories = ref([])
@@ -118,7 +121,7 @@ const submit = async () => {
         description: form.value.description || '暂无描述',
         price: parseFloat(form.value.price),
         origin: form.value.origin || "",
-        specification: form.value.specification || "",
+        specification: form.value.specification ? String(form.value.specification) + 'kg' : '',
         stock: parseInt(form.value.stock) || 0,
         category_id: form.value.category_id,
         user_id: parseInt(userId),

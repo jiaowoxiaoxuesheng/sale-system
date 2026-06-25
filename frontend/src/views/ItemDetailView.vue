@@ -1,4 +1,6 @@
-﻿<template>
+﻿<!-- ==================== 商品详情页 ==================== -->
+<!-- 商品信息、图片、价格趋势、购买、评价 -->
+<template>
   <div v-if="item" style="background:white; padding: 20px; border-radius: 8px; max-width: 800px; margin: 0 auto; box-shadow: var(--shadow-sm);">
     <button @click="$router.back()" style="background: #e2e8f0; color: #333; border: none; padding: 8px 18px; cursor: pointer; border-radius: 6px; margin-bottom: 20px; font-weight: bold; transition: var(--transition);">← 返回</button>
     
@@ -248,9 +250,9 @@ const loadReviews = async () => {
   try{const r=await fetch("http://localhost:8000/api/reviews/"+route.params.id);if(r.ok)reviews.value=await r.json();const s=await fetch("http://localhost:8000/api/reviews/stats/"+route.params.id);if(s.ok)reviewStats.value=await s.json()}catch(e){}
 }
 const doReply=async id=>{const txt=replyText.value[id];if(!txt)return;const r=await fetch("http://localhost:8000/api/reviews/"+id+'/response',{method:'POST',headers:{'Content-Type':'application/json','Authorization':token},body:JSON.stringify({response:txt})});if(r.ok){replyText.value[id]="";loadReviews()}}
-const delReview=async id=>{if(!confirm("\u786e\u5b9a\u5220\u9664\u8be5\u8bc4\u4ef7\uff1f"))return;const r=await fetch("http://localhost:8000/api/reviews/"+id,{method:'DELETE',headers:{'Authorization':token}});if(r.ok)loadReviews()}
-const delReply=async id=>{if(!confirm("\u786e\u5b9a\u5220\u9664\u56de\u590d\uff1f"))return;const r=await fetch("http://localhost:8000/api/reviews/"+id+'/response',{method:'DELETE',headers:{'Authorization':token}});if(r.ok)loadReviews()}
-const selfDelReview=async id=>{if(!confirm("\u786e\u5b9a\u5220\u9664\u60a8\u7684\u8bc4\u4ef7\uff1f"))return;const r=await fetch("http://localhost:8000/api/reviews/"+id+'/self',{method:'DELETE',headers:{'Authorization':token}});if(r.ok)loadReviews()}
+const delReview=async id=>{if(!confirm("确定删除该评价？"))return;const r=await fetch("http://localhost:8000/api/reviews/"+id,{method:'DELETE',headers:{'Authorization':token}});if(r.ok)loadReviews()}
+const delReply=async id=>{if(!confirm("确定删除回复？"))return;const r=await fetch("http://localhost:8000/api/reviews/"+id+'/response',{method:'DELETE',headers:{'Authorization':token}});if(r.ok)loadReviews()}
+const selfDelReview=async id=>{if(!confirm("确定删除您的评价？"))return;const r=await fetch("http://localhost:8000/api/reviews/"+id+'/self',{method:'DELETE',headers:{'Authorization':token}});if(r.ok)loadReviews()}
 
 const buyItem = async () => {
     if(!userId) return alert('请先登录！')

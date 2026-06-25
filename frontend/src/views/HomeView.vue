@@ -49,6 +49,8 @@
   </div>
 </template>
 
+<!-- ==================== 首页商品广场 ==================== -->
+<!-- 商品列表 + 搜索筛选 + 热门推荐 + 价格趋势 -->
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
@@ -62,7 +64,8 @@ const hotItems = ref([])
 const categories = ref([])
 const query = ref({ keyword: '', categoryId: '', minPrice: '', maxPrice: '', startDate: '', endDate: '', page: 1, size: 8 })
 
-const fetchData = async () => {
+  // 获取商品列表（支持关键词、分类、价格范围等多条件检索）
+  const fetchData = async () => {
     let url = `http://localhost:8000/api/items?page=${query.value.page}&size=${query.value.size}`
     if (query.value.keyword) url += `&keyword=${query.value.keyword}`
     if (query.value.categoryId) url += `&category_id=${query.value.categoryId}`
@@ -78,7 +81,8 @@ const fetchData = async () => {
 
 const currentCategoryChart = ref('')
 
-const fetchAdvancedData = async () => {
+  // 加载分类列表、热门商品和价格趋势图表
+  const fetchAdvancedData = async () => {
     fetch('http://localhost:8000/api/categories')
         .then(res => res.json())
         .then(data => categories.value = data)

@@ -1,6 +1,9 @@
+<!-- ==================== 布局框架 ==================== -->
+<!-- 顶部导航栏 + 主内容区域 -->
 <template>
   <div>
-    <header class="nav">
+      <!-- 导航栏：根据用户角色动态显示不同链接 -->
+  <header class="nav">
       <div class="logo">农产品电商</div>
       <nav class="nav-links">
         <router-link to="/">首页广场</router-link>
@@ -32,12 +35,15 @@
   </div>
 </template>
 
+<!-- ==================== 状态管理与权限控制 ==================== -->
 <script setup>
 import { reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const auth = reactive({
+  // 用户认证状态（响应式）
+  // 存储 token、用户名、角色、余额
+  const auth = reactive({
   token: '',
   username: '',
   role: '',
@@ -46,15 +52,17 @@ const auth = reactive({
 
 const roleName = computed(() => {
   const map = {
-    'farmer': '\u5546\u5bb6',
-    'consumer': '\u6d88\u8d39\u8005',
-    'admin': '\u7ba1\u7406\u5458'
+    'farmer': '商家',
+    'consumer': '消费者',
+    'admin': '管理员'
   }
   return map[auth.role] || ''
 })
 
 
-onMounted(async () => {
+  // 组件挂载时检查登录状态
+  // 从 localStorage 读取 token 并刷新用户信息
+  onMounted(async () => {
   auth.token = localStorage.getItem('token') || ''
   const userId = localStorage.getItem('user_id')
   
@@ -82,7 +90,8 @@ onMounted(async () => {
   }
 })
 
-const logout = () => {
+  // 退出登录：清空 localStorage 并跳转到登录页
+  const logout = () => {
   localStorage.clear()
   auth.token = ''
   auth.username = ''

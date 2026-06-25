@@ -1,4 +1,6 @@
-﻿<template>
+﻿<!-- ==================== 我的收藏 ==================== -->
+<!-- 查看收藏的商品列表 -->
+<template>
   <div style="background:white; padding: 20px; border-radius: 8px;">
     <h2>我的收藏</h2>
     <div class="item-grid" v-if="items.length">

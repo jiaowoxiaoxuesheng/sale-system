@@ -1,4 +1,6 @@
-﻿<template>
+﻿<!-- ==================== 商品后台 ==================== -->
+<!-- 统计卡片 + 多条件检索 + 商品列表 + 销售饼图 -->
+<template>
   <div class="publish-container">
     <h2 style="margin-bottom:20px; color:var(--text-main);">商品后台</h2>
 

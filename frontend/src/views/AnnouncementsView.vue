@@ -1,3 +1,5 @@
+<!-- ==================== 系统公告 ==================== -->
+<!-- 查看管理员发布的公告 -->
 <template>
   <div style="max-width: 800px; margin: auto;">
     <h2 style="text-align: center; color: #4CAF50;">📰 平台系统公告</h2>
