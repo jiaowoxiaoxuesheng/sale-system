@@ -13,9 +13,9 @@
         <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
           <th style="padding: 12px; text-align: left;">商品名称</th>
           <th style="padding: 12px; text-align: left;">卖家</th>
-          <th style="padding: 12px; text-align: center;">价格</th><th style="padding:12px;text-align:center;">订单状态</th>
+          <th style="padding: 12px; text-align: center;">价格</th><th style="padding:12px;text-align:center;">数量</th><th style="padding:12px;text-align:center;">订单状态</th>
           <th style="padding: 12px; text-align: center;">购买时间</th>
-          <th style="padding: 12px; text-align: center;">操作</th>
+          <th style="padding: 12px; text-align: center;">操作</th><th style="padding:12px;text-align:center;">数量</th>
         </tr>
       </thead>
       <tbody>
@@ -27,7 +27,7 @@
           </td>
           <td style="padding: 12px;">{{ purchase.seller_name }}</td>
           <td style="padding: 12px; text-align: center; color: red; font-weight: bold;">¥{{ purchase.price }}</td>
-          <td style="padding:12px;text-align:center;font-size:0.9em;">
+          <td style="padding:12px;text-align:center;">x{{ purchase.quantity || 1 }}</td><td style="padding:12px;text-align:center;font-size:0.9em;">
             <span :style="'background:'+statusColor[purchase.logistics_status]+';color:white;padding:3px 10px;border-radius:12px;font-weight:bold;'">{{statusLabel[purchase.logistics_status]||purchase.logistics_status}}</span>
           </td><td>{{ formatDate(purchase.created_at) }}</td>
           <td style="padding: 12px; text-align: center;">

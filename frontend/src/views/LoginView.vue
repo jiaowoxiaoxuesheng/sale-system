@@ -20,7 +20,7 @@
       <button @click="doRegister" style="width:100%;padding:10px;background:#2196F3;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;">注册</button>
       <p style="text-align:center;margin-top:15px;"><a href="#" @click="mode='login'">返回登录</a></p>
     </div>
-    <p style="text-align:center;font-size:12px;color:gray;">注：首个注册的用户将自动成为管理员</p>
+    
   </div>
 </template>
 
@@ -34,17 +34,17 @@ const mode=ref('login')
 const form=ref({username:"",password:"",confirm_password:"",role:"consumer"})
 
   // 登录操作：验证账号密码，保存 token 到 localStorage
-  const doLogin=async()=>{
+  const doLogin=async()=>{try{
   const r=await fetch("http://localhost:8000/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:form.value.username,password:form.value.password})})
   const d=await r.json()
   if(!r.ok){alert(d.detail);return}
   localStorage.setItem("token",d.token);localStorage.setItem("user_id",d.user_id)
   localStorage.setItem("username",d.username);localStorage.setItem("role",d.role)
   alert(d.message);location.href="/"
-}
+}catch(e){alert('登录失败:后端服务未启动')}}
 
   // 注册操作：验证密码一致性，选择用户角色（消费者/商家）
-  const doRegister=async()=>{
+  const doRegister=async()=>{try{
   if(!form.value.username||!form.value.password)return alert("请填写用户名和密码")
   if(form.value.password!==form.value.confirm_password)return alert("两次密码输入不一致")
   const r=await fetch("http://localhost:8000/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form.value)})
@@ -52,5 +52,5 @@ const form=ref({username:"",password:"",confirm_password:"",role:"consumer"})
   if(!r.ok)return alert(d.detail)
   alert(d.message);mode.value='login';
   form.value.password="";form.value.confirm_password=""
-}
+}catch(e){alert('注册失败:后端服务未启动')}}
 </script>

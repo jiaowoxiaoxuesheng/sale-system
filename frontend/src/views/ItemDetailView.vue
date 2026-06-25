@@ -127,7 +127,7 @@
   </div>
   
   <!-- AI 助手组件 -->
-  <div class="ai-assistant" :class="{ 'ai-open': isAIOpen }">
+  <div v-if="userRole === 'consumer'" class="ai-assistant" :class="{ 'ai-open': isAIOpen }">
       <div v-if="!isAIOpen" class="ai-bubble" @click="isAIOpen = true">
           🤖 智能助手
       </div>

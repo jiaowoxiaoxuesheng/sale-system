@@ -106,6 +106,7 @@
         <div style="margin-bottom: 20px;">
           <label>描述：</label>
           <textarea v-model="editForm.description" rows="4" style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
+        </div>
         <div style="margin-bottom:10px;">
           <label>产地</label><input v-model="editForm.origin" style="width:100%;padding:8px;margin-top:5px;">
         </div>
@@ -127,7 +128,6 @@
               <button type="button" @click="removeEditImage(idx)" style="position:absolute;top:-5px;right:-5px;background:red;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px;line-height:1;">×</button>
             </div>
           </div>
-        </div>
         </div>
         <div style="text-align: right;">
           <button @click="editingItem = null" class="btn bg-orange" style="margin-right: 10px;">取消</button>

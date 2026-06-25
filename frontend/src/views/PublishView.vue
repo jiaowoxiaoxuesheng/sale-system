@@ -12,6 +12,7 @@
       </div>
       <div style="margin-bottom:15px;"><label>价格 (￥): </label>
         <input type="number" step="0.01" min="0" v-model="form.price" required style="width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+      </div>
 
       <div style="margin-bottom:15px;">
         <label>产地：</label>
@@ -25,6 +26,10 @@
         <label>库存（数量）：</label>
         <input type="number" min="0" v-model="form.stock" placeholder="如： 100" style="width:100%;padding:8px;margin-top:5px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
       </div>
+      <div style="margin-bottom:15px;">
+        <label>补货界限：</label>
+        <input type="number" min="0" v-model="form.min_stock" placeholder="如： 10" style="width:100%;padding:8px;margin-top:5px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;">
+        <span style="font-size:0.85em;color:#999;display:block;">库存低于此值时显示补货提醒</span>
       </div>
       
       <!-- 加分项：多图上传面板 -->
@@ -120,8 +125,8 @@ const submit = async () => {
         title: form.value.title.trim(),
         description: form.value.description || '暂无描述',
         price: parseFloat(form.value.price),
-        origin: form.value.origin || "",
-        specification: form.value.specification ? String(form.value.specification) + 'kg' : '',
+        origin: form.value.origin || '',
+        specification: (form.value.specification || 1).toString() + 'kg',
         stock: parseInt(form.value.stock) || 0,
         min_stock: parseInt(form.value.min_stock) || 0,
         category_id: form.value.category_id,

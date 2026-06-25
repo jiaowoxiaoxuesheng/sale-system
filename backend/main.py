@@ -34,9 +34,8 @@ def init_default_data():
     db = SessionLocal()
     # 初始化默认分类（仅第一次运行时创建）
     if db.query(Category).count() == 0:
-        db.add(Category(name="默认分类"))
-        db.add(Category(name="电子产品"))
-        db.add(Category(name="生活用品"))
+        for name in ["蔬菜", "水果", "肉类", "蛋奶", "谷物"]:
+            db.add(Category(name=name))
         db.commit()
     # 自动创建管理员账号（admin/123456）
     if not db.query(User).filter(User.username == "admin").first():
@@ -45,8 +44,8 @@ def init_default_data():
     db.close()
 
 # 挂载静态文件目录用来响应上传的图片
-os.makedirs("uploads", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+os.makedirs(os.path.join(os.path.dirname(__file__), "uploads"), exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "uploads")), name="uploads")
 
 # ==================== 跨域请求配置 (CORS) ====================
 # 允许前端 Vue 服务器跨域访问后端 API
@@ -85,7 +84,7 @@ def buy_item(item_id: int, buy_req: BuyRequest = None, authorization: Optional[s
     if item.stock <= 0: raise HTTPException(status_code=400, detail="库存为零，无法购买")
     qty = buy_req.quantity if buy_req and buy_req.quantity else 1
     if qty < 1: qty = 1
-    if item.stock < qty: raise HTTPException(status_code=400, detail="")
+    if item.stock < qty: raise HTTPException(status_code=400, detail="库存不足")
     item.stock -= qty
     if item.stock == 0: item.status = 2
     purchase = Purchase(buyer_id=buyer.id, seller_id=item.user_id, item_id=item_id,
@@ -94,7 +93,7 @@ def buy_item(item_id: int, buy_req: BuyRequest = None, authorization: Optional[s
         phone=buy_req.phone if buy_req else "",
         payment_status="unpaid", logistics_status="pending")
     db.add(purchase); db.commit()
-    return {"message": "", "purchase_id": purchase.id}
+    return {"message": "购买成功，请前往“我的订单”进行付款", "purchase_id": purchase.id}
 
     delivery_address: str = ""
     phone: str = ""
@@ -156,7 +155,7 @@ def get_current_user(authorization: Optional[str] = Header(None), db: Session = 
 def register(user: UserAuth, db: Session = Depends(get_db)):
     if db.query(User).filter(User.username == user.username).first():
         raise HTTPException(status_code=400, detail="用户名已被注册")
-    # 初始化第一个用户为管理员（方便测试）
+    # 数据库为空时第一个注册用户自动成为管理员
     is_admin = db.query(User).count() == 0
     new_user = User(username=user.username, password=user.password, role="admin" if is_admin else user.role)
     db.add(new_user)
@@ -165,9 +164,11 @@ def register(user: UserAuth, db: Session = Depends(get_db)):
 
 @app.post("/api/login")
 def login(user: UserAuth, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.username == user.username, User.password == user.password).first()
+    db_user = db.query(User).filter(User.username == user.username).first()
     if not db_user:
-        raise HTTPException(status_code=400, detail="用户名或密码错误")
+        raise HTTPException(status_code=400, detail="用户未注册")
+    if db_user.password != user.password:
+        raise HTTPException(status_code=400, detail="密码错误")
     if not db_user.is_active:
         raise HTTPException(status_code=403, detail="账号已被禁用，请联系管理员")
     # 生成真实的 JWT token
@@ -189,13 +190,12 @@ def login(user: UserAuth, db: Session = Depends(get_db)):
 @app.post("/api/upload")
 def upload_image(file: UploadFile = File(...)):
     """加分项：多图上传"""
-    file_location = f"uploads/{secrets.token_hex(8)}_{file.filename}"
-    with open(file_location, "wb+") as file_object:
+    filename = f"{secrets.token_hex(8)}_{file.filename}"
+    full_path = os.path.join(os.path.dirname(__file__), "uploads", filename)
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    with open(full_path, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
-    return {"url": f"http://localhost:8000/{file_location}"}
-
-# ==================== 3. 考核接口 ====================
-
+    return {"url": f"http://localhost:8000/uploads/{filename}"}
 @app.get("/api/items")
 def get_items(
     keyword: Optional[str] = None,
@@ -377,12 +377,14 @@ def edit_item(item_id: int, item_data: ItemCreate, db: Session = Depends(get_db)
     return {"message": "修改成功"}
 
 @app.delete("/api/items/{item_id}")
-def delete_item(item_id: int, db: Session = Depends(get_db)):
-    """物品删除（级联删除由数据库模型保证）"""
-    db.query(Item).filter(Item.id == item_id).delete()
+def delete_item(item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item: raise HTTPException(status_code=404, detail='商品不存在')
+    if current_user.role != 'admin' and item.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail='无权操作')
+    db.delete(item)
     db.commit()
-    return {"message": "删除成功"}
-
+    return {'message': '删除成功'}
 @app.post("/api/favorites")
 def toggle_favorite(user_id: int, item_id: int, db: Session = Depends(get_db)):
     """收藏与取消收藏"""
@@ -454,7 +456,16 @@ def get_my_publishes(user_id: int, keyword: str = "", origin: str = "", category
         query = query.filter(Item.price >= min_price)
     if max_price > 0:
         query = query.filter(Item.price <= max_price)
-    return query.order_by(desc(Item.created_at)).all()
+    items = query.order_by(desc(Item.created_at)).all()
+    return [{
+        "id": i.id, "title": i.title, "price": i.price,
+        "origin": i.origin or "", "specification": i.specification or "",
+        "stock": i.stock or 0, "min_stock": i.min_stock or 0,
+        "status": i.status, "views": i.views,
+        "images": i.images, "created_at": i.created_at.strftime("%Y-%m-%dT%H:%M:%S") if i.created_at else "",
+        "category_id": i.category_id, "user_id": i.user_id,
+        "description": i.description or ""
+    } for i in items]
 
 @app.get("/api/users/{user_id}/purchases")
 def get_my_purchases(user_id: int, db: Session = Depends(get_db)):
@@ -497,7 +508,8 @@ def get_my_purchases(user_id: int, db: Session = Depends(get_db)):
 @app.get("/api/hot-items")
 def get_hot_items(db: Session = Depends(get_db)):
     """加分项：热门商品排行 - 仅显示上架商品"""
-    return db.query(Item).filter(Item.status == 1).order_by(desc(Item.views)).limit(5).all()
+    items = db.query(Item).filter(Item.status == 1).order_by(desc(Item.views)).limit(5).all()
+    return [{'id': i.id, 'title': i.title, 'price': i.price, 'views': i.views, 'created_at': i.created_at.strftime('%Y-%m-%d') if i.created_at else ''} for i in items]
 
 @app.get("/api/price-trends")
 def get_price_trends(db: Session = Depends(get_db)):
@@ -549,7 +561,8 @@ class CategoryCreate(BaseModel):
 @app.get("/api/categories")
 def get_categories(db: Session = Depends(get_db)):
     """获取所有分类"""
-    return db.query(Category).all()
+    cats = db.query(Category).all()
+    return [{'id': c.id, 'name': c.name} for c in cats]
 
 @app.post("/api/categories")
 def create_category(data: CategoryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -580,7 +593,8 @@ class AnnouncementCreate(BaseModel):
 @app.get("/api/announcements")
 def get_announcements(db: Session = Depends(get_db)):
     """获取所有公告(公开)"""
-    return db.query(Announcement).order_by(desc(Announcement.created_at)).all()
+    anns = db.query(Announcement).order_by(desc(Announcement.created_at)).all()
+    return [{'id': a.id, 'title': a.title, 'content': a.content, 'images': a.images, 'created_at': a.created_at.strftime('%Y-%m-%d %H:%M') if a.created_at else ''} for a in anns]
 
 @app.post("/api/announcements")
 def create_announcement(data: AnnouncementCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -603,36 +617,6 @@ def delete_announcement(ann_id: int, db: Session = Depends(get_db), current_user
     db.delete(ann)
     db.commit()
     return {"message": "公告删除成功"}
-
-def buy_item(item_id: int, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    """模拟购买机制"""
-    # 验证买家身份
-    buyer = get_current_user(authorization=authorization, db=db)
-    buyer_id = buyer.id
-    
-    item = db.query(Item).filter(Item.id == item_id).first()
-    if not item or item.status != 1:
-        raise HTTPException(status_code=400, detail="商品已被抢走或已下架")
-    
-    # 将商品状态设为已售出
-    item.status = 2
-    
-    # 为卖家增加余额
-    seller = db.query(User).filter(User.id == item.user_id).first()
-    if seller:
-        seller.balance += item.price
-    
-    # 记录购买信息
-    purchase = Purchase(
-        buyer_id=buyer_id,
-        seller_id=item.user_id,
-        item_id=item_id,
-        item_title=item.title,
-        price=item.price
-    )
-    db.add(purchase)
-    db.commit()
-    return {"message": "购买成功！"}
 
 @app.get("/api/me/{user_id}")
 def get_my_info(user_id: int, db: Session = Depends(get_db)):
@@ -774,8 +758,6 @@ def pay_purchase(purchase_id: int, authorization: Optional[str] = Header(None), 
     if purchase.payment_status != "unpaid": raise HTTPException(status_code=400, detail="已付款")
     purchase.payment_status = "paid"
     purchase.logistics_status = "pending_shipment"
-    seller = db.query(User).filter(User.id == purchase.seller_id).first()
-    if seller: seller.balance += purchase.price * (purchase.quantity or 1)
     db.commit()
     return {"message": "付款成功，等待发货"}
 
@@ -788,6 +770,9 @@ def confirm_received(purchase_id: int, authorization: Optional[str] = Header(Non
     if not purchase: raise HTTPException(status_code=404, detail="订单不存在")
     if purchase.logistics_status != "shipped": raise HTTPException(status_code=400, detail="未发货")
     purchase.logistics_status = "completed"
+    if purchase.payment_status == "paid":
+        seller = db.query(User).filter(User.id == purchase.seller_id).first()
+        if seller: seller.balance += purchase.price * (purchase.quantity or 1)
     db.commit()
     return {"message": "已确认收货"}
 

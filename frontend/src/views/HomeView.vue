@@ -1,7 +1,7 @@
 ﻿<template>
   <div>
     <div class="filters">
-      <input v-model="query.keyword" placeholder="搜索闲置物品关键字..." />
+      <input v-model="query.keyword" placeholder="搜索农产品名称..." />
       <select v-model="query.categoryId" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
         <option value="">全部分类</option>
         <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
@@ -74,8 +74,9 @@ const query = ref({ keyword: '', categoryId: '', minPrice: '', maxPrice: '', sta
     try {
         const res = await fetch(url)
         const data = await res.json()
-        items.value = data.items
-        total.value = data.total
+        if (!res.ok) { items.value = []; total.value = 0; return }
+        items.value = data.items || []
+        total.value = data.total || 0
     } catch(e) { console.error('需要先启动后端服务器!') }
 }
 
